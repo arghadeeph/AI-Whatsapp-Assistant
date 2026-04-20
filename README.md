@@ -267,4 +267,4 @@ The app supports JWT authentication with refresh token rotation.
 
 ## License
 
-No license file is currently included. Add one if you plan to distribute the project publicly.
+This project is licensed under the [MIT License](/data/html/CodePayground/ai-whatsapp-assistant/LICENSE).
