@@ -1,0 +1,38 @@
+curl -X POST \
+  "https://graph.facebook.com/v18.0/978945621979773/messages" \
+  -H "Authorization: Bearer EAAWuxZCZBqlIIBRJ9oIjIDSxPYnL7wikgRzqGpJoeFfe8BjIXb9sMTXnsSEj8EZAyRvoVTCSouPj9kpGGnjVvqzRKE4PDKND3EMBSnR4jxSRw9oQPvYfiBXVXY7IkZCEgbHCftN4ezxEqWBcRWZCMOQsdWJ2T4m14FV6GB4w0hMwWGyiLZBF2wEITlkqiCsxt3fwRE4hp6p1QBZCN8eB1Qw03DDZAskrCxXUjhgOpCFvkJWWU1mJwc1q8s1Cff21DgsePiQMVjkuPck1vhxcz17tZAL6J" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messaging_product": "whatsapp",
+    "to": "917384794163",
+    "type": "text",
+    "text": { "body": "Test with permanent token 🚀" }
+  }'
+
+curl -X POST \
+"https://graph.facebook.com/v18.0/978945621979773/messages" \
+-H "Authorization: Bearer EAAWuxZCZBqlIIBRHvttlhr53GOC2jCOs6MLUa9Og4aWacDTbrZBKV6B9PcBf9tPEHMWJV1C8eamdeuCNJ7kMoSzZB3CSkgLYKuAExA7xuRB0l2Sis85LgYFvWWH9dOmY33pdaYHfDVunsrWOKvjHZC3cBmif6bPhdkfqf3X77hBtdaEqjvQztsyzHQtrjZCZCbBzAZDZD" \
+-H "Content-Type: application/json" \
+-d '{
+  "messaging_product": "whatsapp",
+  "to": "917384794163",
+  "type": "template",
+  "template": {
+    "name": "welcome_message",
+    "language": {
+      "code": "en"
+    },
+    "components": [
+      {
+        "type": "body",
+        "parameters": [
+          { "type": "text", "text": "Arghadeep" },
+          { "type": "text", "text": "Smart AI Assistant" }
+        ]
+      }
+    ]
+  }
+}'
+
+curl -X GET \
+"https://graph.facebook.com/v18.0/1633023084662229/message_templates?access_token=EAAWuxZCZBqlIIBRHvttlhr53GOC2jCOs6MLUa9Og4aWacDTbrZBKV6B9PcBf9tPEHMWJV1C8eamdeuCNJ7kMoSzZB3CSkgLYKuAExA7xuRB0l2Sis85LgYFvWWH9dOmY33pdaYHfDVunsrWOKvjHZC3cBmif6bPhdkfqf3X77hBtdaEqjvQztsyzHQtrjZCZCbBzAZDZD"

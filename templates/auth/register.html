@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Register — WA Assistant{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center -mt-8 py-8">
+    <div class="bg-white rounded-2xl shadow-md w-full max-w-md p-8">
+
+        <div class="flex flex-col items-center mb-8">
+            <div class="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center mb-3">
+                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.849L0 24l6.335-1.51A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.6a9.6 9.6 0 110-19.2 9.6 9.6 0 010 19.2z"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800">Create your account</h1>
+            <p class="text-gray-400 text-sm mt-1">Set up your business on WA Assistant</p>
+        </div>
+
+        <!-- Error / Success -->
+        <div id="error-msg" class="hidden bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4"></div>
+        <div id="success-msg" class="hidden bg-green-50 border border-green-200 text-green-600 text-sm rounded-lg px-4 py-3 mb-4"></div>
+
+        <form id="register-form" class="space-y-4">
+
+            <!-- Name Row -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <input type="text" id="first_name" placeholder="John"
+                        class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <input type="text" id="last_name" placeholder="Doe"
+                        class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="email" placeholder="john@example.com"
+                    class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" id="password" placeholder="Min 8 characters"
+                    class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+            </div>
+
+            <hr class="border-gray-100" />
+            <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Business Details</p>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+                <input type="text" id="business_name" placeholder="John's Shop"
+                    class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Business Phone (WhatsApp)</label>
+                <input type="text" id="business_phone" placeholder="9876543210"
+                    class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+            </div>
+
+            <button type="submit"
+                class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center gap-2">
+                <span id="btn-text">Create Account</span>
+                <svg id="spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+            </button>
+        </form>
+
+        <p class="text-center text-sm text-gray-400 mt-6">
+            Already have an account?
+            <a href="/auth/login/" class="text-green-600 font-medium hover:underline">Login</a>
+        </p>
+
+    </div>
+</div>
+
+<script>
+document.getElementById('register-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const errorMsg = document.getElementById('error-msg');
+    const successMsg = document.getElementById('success-msg');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btn-text');
+
+    errorMsg.classList.add('hidden');
+    successMsg.classList.add('hidden');
+    spinner.classList.remove('hidden');
+    btnText.textContent = 'Creating account...';
+
+    const payload = {
+        first_name: document.getElementById('first_name').value.trim(),
+        last_name: document.getElementById('last_name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+        business_name: document.getElementById('business_name').value.trim(),
+        business_phone: document.getElementById('business_phone').value.trim(),
+    };
+
+    try {
+        
+        const res = await fetch('/api/auth/register/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },  // NO Authorization header
+            body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            // Store tokens and redirect
+            localStorage.setItem('access_token', data.access);
+            localStorage.setItem('refresh_token', data.refresh);
+            localStorage.setItem('user_name', data.name);
+            localStorage.setItem('business_name', data.business);
+            window.location.href = '/dashboard/';
+        } else {
+            // Show first error from API
+            const firstError = Object.values(data)[0];
+            errorMsg.textContent = Array.isArray(firstError) ? firstError[0] : firstError;
+            errorMsg.classList.remove('hidden');
+        }
+    } catch (err) {
+        errorMsg.textContent = 'Network error. Please try again.';
+        errorMsg.classList.remove('hidden');
+    } finally {
+        spinner.classList.add('hidden');
+        btnText.textContent = 'Create Account';
+    }
+});
+</script>
+{% endblock %}

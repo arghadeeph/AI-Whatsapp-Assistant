@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — WA Assistant{% endblock %}
+
+{% block content %}
+
+<!-- Welcome Banner -->
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800" id="welcome-title">Welcome back</h1>
+    <p class="text-gray-500 mt-1">Here's what's happening with <span class="font-medium text-green-600" id="business-name">your business</span> today.</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+    <div class="bg-white rounded-xl shadow-sm p-6 flex items-center gap-4">
+        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-xl">💬</div>
+        <div>
+            <p class="text-sm text-gray-500">Total Messages</p>
+            <p class="text-2xl font-bold text-gray-800" id="stat-messages">0</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-6 flex items-center gap-4">
+        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xl">🙋</div>
+        <div>
+            <p class="text-sm text-gray-500">Total Leads</p>
+            <p class="text-2xl font-bold text-gray-800" id="stat-leads">0</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-6 flex items-center gap-4">
+        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xl">📣</div>
+        <div>
+            <p class="text-sm text-gray-500">Campaigns</p>
+            <p class="text-2xl font-bold text-gray-800" id="stat-campaigns">0</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-6 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-gray-100 text-gray-400" id="ai-icon">
+            🤖
+        </div>
+        <div>
+            <p class="text-sm text-gray-500">AI Status</p>
+            <p class="text-lg font-bold text-gray-400" id="ai-status">Disabled</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- Business Info Card -->
+<div class="bg-white rounded-xl shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-gray-700 mb-4">Business Info</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+        <div>
+            <p class="text-gray-400">Business Name</p>
+            <p class="font-medium text-gray-800" id="info-name">-</p>
+        </div>
+        <div>
+            <p class="text-gray-400">Phone Number</p>
+            <p class="font-medium text-gray-800" id="info-phone">-</p>
+        </div>
+        <div>
+            <p class="text-gray-400">AI Tone</p>
+            <p class="font-medium text-gray-800 capitalize" id="info-tone">-</p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const res = await apiFetch('/api/dashboard/');
+        if (!res || !res.ok) return;
+
+        const data = await res.json();
+        const business = data.business || {};
+        const stats = data.stats || {};
+
+        const userName = localStorage.getItem('user_name') || 'Welcome back';
+        document.getElementById('welcome-title').textContent = `Welcome back, ${userName}!`;
+        document.getElementById('business-name').textContent = business.name || 'your business';
+
+        document.getElementById('stat-messages').textContent = stats.messages ?? 0;
+        document.getElementById('stat-leads').textContent = stats.leads ?? 0;
+        document.getElementById('stat-campaigns').textContent = stats.campaigns ?? 0;
+
+        document.getElementById('info-name').textContent = business.name || '-';
+        document.getElementById('info-phone').textContent = business.phone_number || '-';
+        document.getElementById('info-tone').textContent = business.tone || '-';
+
+        const aiEnabled = !!business.ai_enabled;
+        const aiIcon = document.getElementById('ai-icon');
+        const aiStatus = document.getElementById('ai-status');
+        if (aiEnabled) {
+            aiIcon.classList.remove('bg-gray-100', 'text-gray-400');
+            aiIcon.classList.add('bg-green-100', 'text-green-600');
+            aiStatus.classList.remove('text-gray-400');
+            aiStatus.classList.add('text-green-600');
+            aiStatus.textContent = 'Active';
+        } else {
+            aiStatus.textContent = 'Disabled';
+        }
+    } catch (err) {
+        // Keep defaults on any error
+    }
+});
+</script>
+
+{% endblock %}

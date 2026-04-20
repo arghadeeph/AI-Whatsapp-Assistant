@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}WhatsApp AI Assistant{% endblock %}</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+    {% if show_header != False %}
+        {% include "partials/header.html" %}
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="flex-1 {% if show_header != False %}container mx-auto px-4 py-8{% endif %}">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if show_header != False %}
+        {% include "partials/footer.html" %}
+    {% endif %}
+
+    <!-- Global Auth Guard + Logout -->
+    <script>
+    // Pages that don't need a token
+    const publicPages = ['/auth/login/', '/auth/register/'];
+    const isPublicPage = publicPages.includes(window.location.pathname);
+
+    // If not a public page and no token → redirect to login
+    if (!isPublicPage && !localStorage.getItem('access_token')) {
+        window.location.href = '/auth/login/'; 
+    }
+
+    // If already logged in and on login/register → redirect to dashboard
+    if (isPublicPage && localStorage.getItem('access_token')) {
+        window.location.href = '/dashboard/';
+    }
+
+    // Global logout
+    function logout() {
+        localStorage.clear();
+        window.location.href = '/auth/login/';
+    }
+
+    // Global API helper
+    async function apiFetch(url, options = {}, retry = true) {
+        const token = localStorage.getItem('access_token');
+
+        const res = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                ...(options.headers || {}),
+            },
+        });
+
+        if (res.status === 401 && retry) {
+            // This stops wrong credentials on login from triggering logout
+            if (isPublicPage) {
+                return res;
+            }
+
+            const refreshed = await tryRefreshToken();
+            if (refreshed) {
+                return apiFetch(url, options, false);
+            } else {
+                logout();
+                return;
+            }
+        }
+
+        return res;
+    }
+
+    // apiFetch → 401 → tryRefreshToken → apiFetch → 401 → infinite loop 
+    async function tryRefreshToken() {
+        const refresh = localStorage.getItem('refresh_token');
+        if (!refresh) return false;
+
+        try {
+            const res = await fetch('/api/auth/token/refresh/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refresh }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('access_token', data.access);
+                // If Django rotated the refresh token, save the new one too
+                if (data.refresh) {
+                    localStorage.setItem('refresh_token', data.refresh);
+                }
+                return true;
+            }
+
+            return false;
+        } catch (err) {
+            return false;
+        }
+    }
+</script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

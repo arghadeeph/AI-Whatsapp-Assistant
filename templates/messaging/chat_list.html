@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Chats — WA Assistant{% endblock %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto">
+
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Conversations</h1>
+        <p class="text-gray-500">Your recent chats</p>
+    </div>
+
+    <div id="chat-list" class="bg-white rounded-xl shadow-sm divide-y"></div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+
+<script>
+async function loadConversations() {
+    const res = await apiFetch('/api/messages/conversations/');
+    const data = await res.json();
+
+    const container = document.getElementById('chat-list');
+    container.innerHTML = '';
+
+    data.conversations.forEach(c => {
+        const item = document.createElement('a');
+        item.href = `/chat/${c.signed_phone}/`;
+
+        item.className = "block p-4 hover:bg-gray-50 transition";
+
+        item.innerHTML = `
+            <div class="flex justify-between">
+                <div>
+                    <p class="font-medium text-gray-800">${c.phone}</p>
+                    <p class="text-sm text-gray-400">Tap to open chat</p>
+                </div>
+                <span class="text-xs text-gray-400">${c.last_time}</span>
+            </div>
+        `;
+
+        container.appendChild(item);
+    });
+}
+
+loadConversations();
+</script>
+
+{% endblock %}
