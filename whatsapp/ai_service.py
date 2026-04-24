@@ -2,16 +2,23 @@ import openai
 from django.conf import settings
 from messaging.models import Messages
 import logging
+from businesses.models import FAQ
+from django.utils import timezone
 
 client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 
 logger = logging.getLogger(__name__)
 
-def build_system_prompt(business):
+def build_system_prompt(business, faq_context=""):
     """Build a tenant-specific system prompt."""
+    now = timezone.localtime(timezone.now())
     return (
         f"You are a helpful WhatsApp assistant for {business.name}. "
+        f"Current date and time: {now.strftime('%A, %B %d, %Y %I:%M %p %Z')}. "
         f"{getattr(business, 'ai_instructions', '')} "
+        f"{faq_context} "
+        "Use the FAQ information when relevant. "
+        "If information is unavailable, politely ask the customer for more details. "
         "Be concise and friendly. Respond in plain text without markdown."
     )
 
@@ -37,6 +44,43 @@ def get_conversation_history(business, contact_phone, limit=5):
         for msg in reversed(list(messages))
     ]
 
+def get_relevant_faq_context(business, user_message, limit=5):
+    """
+    Match FAQs using both question + answer content.
+    Simple keyword-based search for now.
+    Later this can be upgraded to embeddings/vector search.
+    """
+
+    faqs = FAQ.objects.filter(
+        business=business,
+        is_active=True
+    )
+
+    matched_faqs = []
+    user_words = user_message.lower().split()
+
+    for faq in faqs:
+        searchable_text = f"{faq.question} {faq.answer}".lower()
+
+        # Match if any word from user message exists in question OR answer
+        if any(word in searchable_text for word in user_words):
+            matched_faqs.append(faq)
+
+        if len(matched_faqs) >= limit:
+            break
+
+    if not matched_faqs:
+        return ""
+
+    faq_context = "\nRelevant FAQs:\n\n"
+
+    for faq in matched_faqs:
+        faq_context += f"Q: {faq.question}\n"
+        faq_context += f"A: {faq.answer}\n\n"
+
+    return faq_context.strip()
+
+
 def get_ai_response(business, contact_phone, user_message):
 
     """
@@ -45,12 +89,17 @@ def get_ai_response(business, contact_phone, user_message):
     """
     history = get_conversation_history(business, contact_phone)
 
+    faq_context = get_relevant_faq_context(
+        business=business,
+        user_message=user_message
+    )
+    
     response = client.chat.completions.create(
         model=settings.OPENAI_MODEL,
         max_tokens=settings.OPENAI_MAX_TOKENS,
         temperature=settings.OPENAI_TEMPERATURE,
         messages=[
-            {"role": "system", "content": build_system_prompt(business)},
+            {"role": "system", "content": build_system_prompt(business, faq_context)},
             *history,
             {"role": "user", "content": user_message},  # current message
         ],

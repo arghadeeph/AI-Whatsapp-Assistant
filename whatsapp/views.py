@@ -103,6 +103,7 @@ class WhatsAppWebhookView(APIView):
 
         # Get sender's name from contacts
         contacts    = value.get('contacts', [])
+        contact_wa_id = contacts[0].get('wa_id') if contacts else None
         sender_name = contacts[0].get('profile', {}).get('name', 'Unknown') if contacts else 'Unknown'
 
         # Get message body based on type
@@ -144,6 +145,14 @@ class WhatsAppWebhookView(APIView):
                 business.phone_number_id = phone_number_id
                 business.save()
 
+        if not business:
+            logger.error(
+                "No business found for phone_number_id=%s display_phone=%s",
+                phone_number_id,
+                display_phone,
+            )
+            return
+
         # Save to DB
         Messages.objects.create(
             business=business,
@@ -169,21 +178,33 @@ class WhatsAppWebhookView(APIView):
             logger.error("AI response error for %s: %s", from_number, e)
             reply = "Sorry, I'm having trouble responding right now. Please try again shortly."
 
+        reply_to_phone = contact_wa_id or from_number
+
         data = send_whatsapp_message(
             business=business,
-            to_phone=from_number,
+            to_phone=reply_to_phone,
             message_text=reply
         )
 
+        wa_message_id = None
+        if data:
+            wa_message_id = data.get('messages', [{}])[0].get('id')
+        else:
+            logger.error(
+                "WhatsApp send failed for business=%s recipient=%s",
+                business.id,
+                reply_to_phone,
+            )
+
         Messages.objects.create(
             business=business,
-            phone=from_number,
+            phone=reply_to_phone,
             sender='ai',
             direction='out',
             message=reply,
             message_type='text',
-            wa_message_id=data['messages'][0]['id'] if data else None,
-            status='sent',
+            wa_message_id=wa_message_id,
+            status='sent' if wa_message_id else 'failed',
             timestamp=timezone.now()
         )
 

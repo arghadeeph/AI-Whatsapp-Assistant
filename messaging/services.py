@@ -27,12 +27,19 @@ def send_whatsapp_message(business, to_phone, message_text):
 
     try:
         response = requests.post(url, json=payload, headers=headers)
-        data = response.json()
+        try:
+            data = response.json()
+        except ValueError:
+            data = {"raw": response.text}
 
         logger.info("WhatsApp send response: %s", data)
 
         if response.status_code != 200:
-            logger.error("WhatsApp API error: %s", data)
+            logger.error(
+                "WhatsApp API error | status=%s | response=%s",
+                response.status_code,
+                data,
+            )
             return None
 
         return data
