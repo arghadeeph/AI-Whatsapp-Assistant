@@ -1,14 +1,45 @@
 services:
+
+  # ── Django app ───────────────────────────────────────────────────────────────
   web:
     build: .
     container_name: ai-whatsapp-assistant
     command: python manage.py runserver 0.0.0.0:8000
-    # command: gunicorn --bind 0.0.0.0:8000 ai-whatsapp-assistant.wsgi:application
+    # command: gunicorn --bind 0.0.0.0:8000 config.wsgi:application
     volumes:
       - .:/app
+      - media_files:/app/media
     ports:
       - "8000:8000"
     env_file:
       - .env
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "host.docker.internal:host-gateway"   # ← this is how container reaches your local pg
+    depends_on:
+      - redis
+
+  # ── Redis broker ─────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ai-whatsapp-redis
+    ports:
+      - "6379:6379"
+
+  # ── Celery worker ─────────────────────────────────────────────────────────────
+  celery_worker:
+    build: .
+    container_name: ai-whatsapp-celery
+    command: celery -A config worker --loglevel=info --concurrency=2
+    user: "${UID}:${GID}"
+    volumes:
+      - .:/app
+      - media_files:/app/media
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # ← same here
+    depends_on:
+      - redis
+
+volumes:
+  media_files:

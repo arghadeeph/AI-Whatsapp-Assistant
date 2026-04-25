@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'dashboard',
     'whatsapp',
     'messaging',
+    'rag',
 ]
 
 MIDDLEWARE = [
@@ -115,6 +116,16 @@ DATABASES = {
     }
 }
 
+# Redis — container service name
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+
+# config/settings.py
+CELERY_BROKER_URL     = os.getenv("REDIS_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://redis:6379/0")
+CELERY_TASK_SERIALIZER   = "json"
+CELERY_ACCEPT_CONTENT    = ["json"]
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE          = "UTC"
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -145,6 +156,12 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+
+# File uploads (documents)
+MEDIA_URL  = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+MAX_UPLOAD_SIZE_MB = 20
 
 
 # Static files (CSS, JavaScript, Images)

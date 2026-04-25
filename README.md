@@ -47,6 +47,7 @@ The app is organized around a `Business` tenant, and authenticated users are lin
 
 - Python 3.11+
 - PostgreSQL database
+- pgvector PostgreSQL extension
 - WhatsApp Cloud API credentials
 - OpenAI API key
 
@@ -78,6 +79,38 @@ Notes:
 - `POSTGRES_HOST=host.docker.internal` is used by default in `config/settings.py`, especially for Docker-based development.
 - `WHATSAPP_VERIFY_TOKEN` must match the token configured in Meta when you register the webhook.
 - The code currently uses `gpt-4.1-mini` as the OpenAI model in settings.
+- PostgreSQL must have the `vector` extension installed before running the app, because the `Business` model uses `pgvector`.
+
+## pgvector Setup
+
+This project does not automatically install the PostgreSQL `vector` extension on your machine or database server.
+You need to install it once on the PostgreSQL instance that your app connects to.
+
+### For PostgreSQL 12
+
+```bash
+git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git
+cd pgvector
+make
+sudo make install
+sudo systemctl restart postgresql
+```
+
+Then connect to your database and enable the extension:
+
+```bash
+sudo -u postgres psql -d wp_assistant
+CREATE EXTENSION IF NOT EXISTS vector;
+SELECT * FROM pg_extension;
+```
+
+You should see `vector` listed in the result.
+
+### For Docker users
+
+- The app container does not install pgvector into your PostgreSQL server.
+- If you are using a separate PostgreSQL container or local PostgreSQL install, make sure that server has pgvector enabled.
+- If your database image does not already include pgvector, install it in that database environment before running `python manage.py migrate`.
 
 ## Local Setup
 

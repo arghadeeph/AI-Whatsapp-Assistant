@@ -14,3 +14,18 @@ typing-extensions==4.13.2
 urllib3==2.2.3
 gunicorn
 openai
+psycopg2-binary==2.9.10
+pgvector==0.2.5
+
+# RAG
+langchain==0.2.16
+langchain-openai==0.1.23
+langchain-community==0.2.16
+langchain-postgres==0.0.9
+pypdf==4.3.1
+docx2txt==0.8
+
+# Queue
+celery==5.4.0
+redis==5.0.7
+django-celery-results==2.5.1
