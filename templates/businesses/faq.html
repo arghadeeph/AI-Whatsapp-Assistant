@@ -134,10 +134,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             </label>
                         </td>
                         <td class="px-6 py-4 text-right">
-                            <button onclick='editFaq(${JSON.stringify(faq)})'
-                                class="text-blue-600 hover:underline">
-                                Edit
-                            </button>
+                            <div class="flex justify-end gap-4">
+                                <button onclick='editFaq(${JSON.stringify(faq)})'
+                                    class="text-blue-600 hover:underline">
+                                    Edit
+                                </button>
+                                <button onclick="deleteFaq(${faq.id}, '${faq.question.replace(/'/g, "\\'")}')"
+                                    class="text-red-600 hover:underline">
+                                    Delete
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -192,6 +198,19 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ is_active: status })
         });
+    };
+
+    window.deleteFaq = async function (id, question) {
+        const confirmed = confirm(`Delete FAQ "${question}"? This action cannot be undone.`);
+        if (!confirmed) return;
+
+        const res = await apiFetch(`/api/business/faq/${id}/`, {
+            method: 'DELETE'
+        });
+
+        if (res.ok) {
+            fetchFaqs();
+        }
     };
 
     // Initial Load

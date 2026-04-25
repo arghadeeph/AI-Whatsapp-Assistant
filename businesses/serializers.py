@@ -7,6 +7,20 @@ class FAQSerializer(serializers.ModelSerializer):
         fields = ['id', 'question', 'answer', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+    def create(self, validated_data):
+        faq = super().create(validated_data)
+        faq.embedding = None
+        faq.embedded_at = None
+        faq.save(update_fields=["embedding", "embedded_at"])
+        return faq
+
+    def update(self, instance, validated_data):
+        faq = super().update(instance, validated_data)
+        faq.embedding = None
+        faq.embedded_at = None
+        faq.save(update_fields=["embedding", "embedded_at"])
+        return faq
+
 
 class DocumentUploadSerializer(serializers.ModelSerializer):
     class Meta:

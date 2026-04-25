@@ -7,7 +7,9 @@ from .serializers import FAQSerializer, DocumentUploadSerializer, DocumentDetail
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.db import transaction
 from rag.tasks import task_ingest_document
+from rag.tasks import task_backfill_faqs
 
 
 # Create your views here.
@@ -31,8 +33,9 @@ class FAQListAPI(APIView):
         business = request.business
         serializer = FAQSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(business=business)
-            return Response(serializer.data, status=201)
+            faq = serializer.save(business=business)
+            transaction.on_commit(lambda: task_backfill_faqs.delay(str(business.id)))
+            return Response(FAQSerializer(faq).data, status=201)
         return Response(serializer.errors, status=400)
     
 class FAQDetailAPI(APIView):
@@ -56,8 +59,9 @@ class FAQDetailAPI(APIView):
         faq = self.get_object(request, pk)
         serializer = FAQSerializer(faq, data=request.data)
         if serializer.is_valid():
-            serializer.save(business=request.business)
-            return Response(serializer.data)
+            saved_faq = serializer.save(business=request.business)
+            transaction.on_commit(lambda: task_backfill_faqs.delay(str(request.business.id)))
+            return Response(FAQSerializer(saved_faq).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, pk):
@@ -65,8 +69,9 @@ class FAQDetailAPI(APIView):
         faq = self.get_object(request, pk)
         serializer = FAQSerializer(faq, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save(business=request.business)
-            return Response(serializer.data)
+            saved_faq = serializer.save(business=request.business)
+            transaction.on_commit(lambda: task_backfill_faqs.delay(str(request.business.id)))
+            return Response(FAQSerializer(saved_faq).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
