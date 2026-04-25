@@ -1,13 +1,13 @@
 from django.shortcuts import render
-from .models import FAQ
+from .models import FAQ, Document
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .serializers import FAQSerializer
-from rest_framework.decorators import action
-from rest_framework.response import Response
+from .serializers import FAQSerializer, DocumentUploadSerializer, DocumentDetailSerializer
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from rest_framework.parsers import MultiPartParser, FormParser
+from rag.tasks import task_ingest_document
 
 
 # Create your views here.
@@ -98,3 +98,47 @@ class FAQToggleStatusAPI(APIView):
             "is_active": faq.is_active,
             "message": "FAQ status updated successfully."
         }, status=status.HTTP_200_OK)    
+
+
+class DocumentUploadView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        business = request.business
+
+        serializer = DocumentUploadSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        document = serializer.save(business=business)
+        task_ingest_document.delay(str(document.id))
+
+        return Response(DocumentUploadSerializer(document).data, status=status.HTTP_201_CREATED)
+
+
+class DocumentListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        business = request.business
+        docs = Document.objects.filter(
+            business=business,
+            is_active=True,
+        ).order_by("-created_at")
+        serializer = DocumentDetailSerializer(docs, many=True)
+        return Response(serializer.data)
+
+
+class DocumentDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, document_id):
+        business = request.business
+        try:
+            doc = Document.objects.get(id=document_id, business=business)
+        except Document.DoesNotExist:
+            return Response(status=404)
+
+        doc.delete()
+        return Response(status=204)

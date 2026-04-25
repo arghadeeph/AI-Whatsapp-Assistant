@@ -41,6 +41,4 @@ urlpatterns = [
     path('business/', include('businesses.urls')),
     path('api/business/', include('businesses.api_urls')),
 
-    path("api/rag/",       include("rag.urls")),
-
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
