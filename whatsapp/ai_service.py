@@ -4,6 +4,7 @@ from messaging.models import Messages
 import logging
 from businesses.models import FAQ
 from django.utils import timezone
+from zoneinfo import ZoneInfo
 
 client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -11,10 +12,15 @@ logger = logging.getLogger(__name__)
 
 def build_system_prompt(business, faq_context=""):
     """Build a tenant-specific system prompt."""
-    now = timezone.localtime(timezone.now())
+    business_tz = ZoneInfo(getattr(settings, "TIME_ZONE", "UTC") or "UTC")
+    if str(business_tz) == "UTC":
+        business_tz = ZoneInfo("Asia/Kolkata")
+    now = timezone.localtime(timezone.now(), business_tz)
     return (
         f"You are a helpful WhatsApp assistant for {business.name}. "
         f"Current date and time: {now.strftime('%A, %B %d, %Y %I:%M %p %Z')}. "
+        "Use this time only as reference for answering time-sensitive questions. "
+        "Do not invent or guess the current time if you are unsure. "
         f"{getattr(business, 'ai_instructions', '')} "
         f"{faq_context} "
         "Use the FAQ information when relevant. "

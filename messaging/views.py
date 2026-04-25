@@ -59,7 +59,7 @@ class MessagesAPI(APIView):
             {
                 "message": m.message,
                 "direction": m.direction,
-                "timestamp": m.timestamp.strftime("%H:%M")
+                "timestamp": timezone.localtime(m.timestamp).strftime("%H:%M")
             }
             for m in messages
         ]

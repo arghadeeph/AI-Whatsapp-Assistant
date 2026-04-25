@@ -7,10 +7,10 @@ from rest_framework.permissions import AllowAny
 from messaging.models import Messages
 from businesses.models import Business
 from datetime import datetime
-from django.utils.timezone import make_aware
 from messaging.services import send_whatsapp_message
 from django.utils import timezone
 from whatsapp.ai_service import get_ai_response
+from django.utils.timezone import is_naive, make_aware
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +97,10 @@ class WhatsAppWebhookView(APIView):
 
         timestamp = None
         if msg_timestamp:
-            timestamp = make_aware(
-                datetime.fromtimestamp(int(msg_timestamp))
-            )
+            timestamp = datetime.fromtimestamp(int(msg_timestamp), tz=timezone.utc)
+            if is_naive(timestamp):
+                timestamp = make_aware(timestamp)
+            timestamp = timezone.localtime(timestamp)
 
         # Get sender's name from contacts
         contacts    = value.get('contacts', [])
