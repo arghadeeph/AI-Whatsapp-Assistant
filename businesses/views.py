@@ -14,6 +14,9 @@ from rag.tasks import task_ingest_document
 
 def faq_page(request):
     return render(request, 'businesses/faq.html')
+
+def documents_page(request):
+    return render(request, 'businesses/documents.html')
  
 class FAQListAPI(APIView):
     permission_classes = [IsAuthenticated]
@@ -97,7 +100,7 @@ class FAQToggleStatusAPI(APIView):
             "id": faq.id,
             "is_active": faq.is_active,
             "message": "FAQ status updated successfully."
-        }, status=status.HTTP_200_OK)    
+        }, status=status.HTTP_200_OK)
 
 
 class DocumentUploadView(APIView):
@@ -114,7 +117,10 @@ class DocumentUploadView(APIView):
         document = serializer.save(business=business)
         task_ingest_document.delay(str(document.id))
 
-        return Response(DocumentUploadSerializer(document).data, status=status.HTTP_201_CREATED)
+        return Response(
+            DocumentUploadSerializer(document).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class DocumentListView(APIView):
@@ -126,7 +132,7 @@ class DocumentListView(APIView):
             business=business,
             is_active=True,
         ).order_by("-created_at")
-        serializer = DocumentDetailSerializer(docs, many=True)
+        serializer = DocumentDetailSerializer(docs, many=True, context={"request": request})
         return Response(serializer.data)
 
 
@@ -135,6 +141,7 @@ class DocumentDeleteView(APIView):
 
     def delete(self, request, document_id):
         business = request.business
+
         try:
             doc = Document.objects.get(id=document_id, business=business)
         except Document.DoesNotExist:

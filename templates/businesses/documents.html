@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Documents — WA Assistant{% endblock %}
+
+{% block content %}
+
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Documents</h1>
+        <p class="text-gray-500 mt-1">Upload business files for ingestion and retrieval.</p>
+    </div>
+    <button id="createDocumentBtn"
+        class="bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition">
+        + Upload Document
+    </button>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="min-w-full text-sm text-left">
+        <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+            <tr>
+                <th class="px-6 py-3">Title</th>
+                <th class="px-6 py-3">Type</th>
+                <th class="px-6 py-3">File</th>
+                <th class="px-6 py-3">Status</th>
+                <th class="px-6 py-3">View</th>
+                <th class="px-6 py-3 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="documentTableBody" class="divide-y divide-gray-100"></tbody>
+    </table>
+</div>
+
+<div id="documentModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50 px-3 py-6">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] p-6 relative flex flex-col overflow-hidden">
+        <div class="shrink-0">
+            <h2 id="documentModalTitle" class="text-lg font-semibold text-gray-800 mb-2">Upload Document</h2>
+            <p class="text-sm text-gray-500 mb-4">Fill in the document details and upload the file.</p>
+        </div>
+
+        <form id="documentForm" class="space-y-4 overflow-y-auto pr-1">
+            <input type="hidden" id="documentId">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Title</label>
+                    <input type="text" id="documentTitle" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500" required>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Document Type</label>
+                    <select id="documentType" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500" required>
+                        <option value="catalog">Catalog</option>
+                        <option value="menu">Menu</option>
+                        <option value="policy">Policy</option>
+                        <option value="faq">FAQ document</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm text-gray-600 mb-1">File</label>
+                <input type="file" id="documentFile" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500" required>
+            </div>
+
+            <div>
+                <label class="block text-sm text-gray-600 mb-1">Description</label>
+                <textarea id="documentDescription" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm text-gray-600 mb-1">Metadata (JSON)</label>
+                <textarea id="documentMetadata" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-green-500" placeholder='{"source": "manual upload"}'></textarea>
+            </div>
+
+            <div class="flex items-center">
+                <input type="checkbox" id="documentActive" class="h-4 w-4 text-green-600 border-gray-300 rounded" checked>
+                <label for="documentActive" class="ml-2 text-sm text-gray-600">Active</label>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" id="closeDocumentModalBtn" class="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-100">Cancel</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const documentTableBody = document.getElementById('documentTableBody');
+    const documentModal = document.getElementById('documentModal');
+    const documentForm = document.getElementById('documentForm');
+    const documentModalTitle = document.getElementById('documentModalTitle');
+
+    const documentId = document.getElementById('documentId');
+    const documentTitle = document.getElementById('documentTitle');
+    const documentType = document.getElementById('documentType');
+    const documentFile = document.getElementById('documentFile');
+    const documentDescription = document.getElementById('documentDescription');
+    const documentMetadata = document.getElementById('documentMetadata');
+    const documentActive = document.getElementById('documentActive');
+
+    document.getElementById('createDocumentBtn').addEventListener('click', () => {
+        documentModalTitle.textContent = 'Upload Document';
+        documentForm.reset();
+        documentActive.checked = true;
+        documentId.value = '';
+        documentModal.classList.remove('hidden');
+        documentModal.classList.add('flex');
+    });
+
+    document.getElementById('closeDocumentModalBtn').addEventListener('click', () => {
+        documentModal.classList.add('hidden');
+        documentModal.classList.remove('flex');
+    });
+
+    documentModal.addEventListener('click', (event) => {
+        if (event.target === documentModal) {
+            documentModal.classList.add('hidden');
+            documentModal.classList.remove('flex');
+        }
+    });
+
+    async function fetchDocuments() {
+        const res = await apiFetch('/api/business/documents/');
+        if (!res.ok) return;
+        const data = await res.json();
+        documentTableBody.innerHTML = '';
+
+        data.forEach(doc => {
+            documentTableBody.innerHTML += `
+                <tr>
+                    <td class="px-6 py-4 font-medium text-gray-800">${doc.title}</td>
+                    <td class="px-6 py-4 text-gray-600">${doc.doc_type}</td>
+                    <td class="px-6 py-4 text-gray-600">${doc.file_name || ''}</td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs ${doc.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">
+                            ${doc.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        ${doc.file_url ? `<a href="${doc.file_url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">View</a>` : '<span class="text-gray-400">-</span>'}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="deleteDocument('${doc.id}', '${doc.title.replace(/'/g, "\\'")}')" class="text-red-600 hover:underline">Delete</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    documentForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        let metadataValue = {};
+        if (documentMetadata.value.trim()) {
+            try {
+                metadataValue = JSON.parse(documentMetadata.value);
+            } catch (error) {
+                alert('Metadata must be valid JSON.');
+                return;
+            }
+        }
+
+        const formData = new FormData();
+        formData.append('title', documentTitle.value);
+        formData.append('doc_type', documentType.value);
+        formData.append('file', documentFile.files[0]);
+        formData.append('description', documentDescription.value);
+        formData.append('metadata', JSON.stringify(metadataValue));
+        formData.append('is_active', documentActive.checked);
+
+        const res = await fetch('/api/business/documents/upload/', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            },
+            body: formData
+        });
+
+        if (res.ok) {
+            documentModal.classList.add('hidden');
+            documentModal.classList.remove('flex');
+            fetchDocuments();
+        }
+    });
+
+    window.deleteDocument = async function (id, title) {
+        const confirmed = confirm(`Delete "${title}"? This action cannot be undone.`);
+        if (!confirmed) return;
+
+        await apiFetch(`/api/business/documents/${id}/`, {
+            method: 'DELETE'
+        });
+        fetchDocuments();
+    };
+
+    fetchDocuments();
+});
+</script>
+
+{% endblock %}

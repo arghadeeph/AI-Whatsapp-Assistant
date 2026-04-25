@@ -53,11 +53,21 @@ class DocumentChunkSerializer(serializers.ModelSerializer):
 class DocumentDetailSerializer(serializers.ModelSerializer):
     chunks      = DocumentChunkSerializer(many=True, read_only=True)
     is_ingested = serializers.BooleanField(read_only=True)
+    file_url    = serializers.SerializerMethodField()
 
     class Meta:
         model  = Document
         fields = [
             "id", "title", "doc_type", "file", "file_name",
-            "description", "is_active", "is_ingested",
+            "file_url", "description", "is_active", "is_ingested",
             "ingested_at", "created_at", "chunks",
         ]
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        if not obj.file:
+            return None
+        url = obj.file.url
+        if request is not None:
+            return request.build_absolute_uri(url)
+        return url
