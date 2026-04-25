@@ -8,6 +8,8 @@ from django.utils import timezone
 from .services import send_whatsapp_message
 from django.shortcuts import render
 from django.http import JsonResponse
+from businesses.models import Business
+from users.models import UserBusiness
 
 
 
@@ -94,12 +96,45 @@ class SendMessageAPI(APIView):
 
         return Response({"status": "sent"})
 
+
+class AIReplyToggleAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        business = request.business
+        ai_enabled = request.data.get("ai_enabled")
+
+        if ai_enabled is None:
+            business.ai_enabled = not business.ai_enabled
+        else:
+            business.ai_enabled = str(ai_enabled).lower() in ("1", "true", "yes", "on")
+
+        business.save(update_fields=["ai_enabled"])
+
+        return Response({
+            "ai_enabled": business.ai_enabled,
+            "message": "AI reply setting updated successfully."
+        })
+
     
 def chat_list_page(request):
     return render(request, 'messaging/chat_list.html')
 
 
 def chat_page(request, signed_phone):
+    phone = unsign_phone(signed_phone)
+    business = getattr(request, "business", None)
+    if business is None and request.user.is_authenticated:
+        user_business = (
+            UserBusiness.objects
+            .select_related("business")
+            .filter(user=request.user)
+            .first()
+        )
+        business = user_business.business if user_business else None
+
     return render(request, 'messaging/chat.html', {
-        'signed_phone': signed_phone
+        'signed_phone': signed_phone,
+        'phone': phone or 'Unknown number',
+        'ai_enabled': getattr(business, 'ai_enabled', True),
     })

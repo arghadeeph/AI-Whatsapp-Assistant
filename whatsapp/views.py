@@ -168,6 +168,10 @@ class WhatsAppWebhookView(APIView):
         )
 
         # ──────REPLY─────── trigger AI reply (Day 13 — Auto Reply)
+        if not getattr(business, "ai_enabled", True):
+            logger.info("AI reply disabled for business=%s; skipping auto response.", business.id)
+            return
+
         try:
             reply = get_ai_response(
                 business=business,

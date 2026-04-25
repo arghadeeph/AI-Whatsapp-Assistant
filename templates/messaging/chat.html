@@ -1,31 +1,68 @@
 {% extends "base.html" %}
 {% block title %}Chat — WA Assistant{% endblock %}
 
+{% block extra_head %}
+<style>
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    main {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 
-<div class="max-w-4xl mx-auto">
-
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Chat</h1>
-    </div>
-
-    <div class="bg-white rounded-xl shadow-sm flex flex-col h-[600px]">
-
-        <!-- Messages -->
-        <div id="chat-box" class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50"></div>
-
-        <!-- Input -->
-        <div class="border-t p-4 flex gap-3">
-            <input id="message-input" class="flex-1 border rounded-lg px-4 py-2 text-sm"
-                   placeholder="Type message..." />
-            <button onclick="sendMessage()"
-                    class="bg-green-600 text-white px-4 py-2 rounded-lg">
-                Send
-            </button>
+<div class="h-[calc(100dvh-50px)] w-full p-0 md:p-3 lg:p-4">
+    <div class="h-full w-full overflow-hidden bg-white md:rounded-2xl md:shadow-lg md:border md:border-gray-100 flex flex-col">
+        <div class="px-4 py-3 border-b bg-gradient-to-r from-emerald-50 to-teal-50 flex items-center justify-between gap-3 shrink-0">
+            <div class="min-w-0">
+                <p class="text-[10px] uppercase tracking-wide text-emerald-700 font-semibold">Current conversation</p>
+                <h2 class="text-base md:text-lg font-semibold text-gray-900 truncate">{{ phone }}</h2>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+                <div class="text-right leading-tight">
+                    <p class="text-[11px] text-gray-500 flex items-center justify-end gap-1.5">
+                        <span class="text-[22px] leading-none text-emerald-600">✦</span>
+                        <span>AI reply</span>
+                    </p>
+                    <p id="ai-status-text" class="text-xs font-semibold tracking-wide {% if ai_enabled %}text-emerald-700{% else %}text-gray-500{% endif %}">
+                        {% if ai_enabled %}ON{% else %}OFF{% endif %}
+                    </p>
+                </div>
+                <button id="ai-toggle"
+                        type="button"
+                        aria-pressed="{% if ai_enabled %}true{% else %}false{% endif %}"
+                        class="relative inline-flex h-8 w-16 items-center rounded-full border transition-colors duration-200 {% if ai_enabled %}bg-emerald-600 border-emerald-600{% else %}bg-gray-300 border-gray-300{% endif %}">
+                    <span id="ai-toggle-knob"
+                          class="inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white shadow-sm transition duration-200 {% if ai_enabled %}translate-x-8{% else %}translate-x-1{% endif %}">
+                        <span class="text-[9px] font-semibold leading-none text-gray-600">AI</span>
+                    </span>
+                </button>
+            </div>
         </div>
 
-    </div>
+        <!-- Messages -->
+        <div id="chat-box" class="flex-1 min-h-0 overflow-y-auto px-4 py-3 md:px-5 md:py-4 space-y-3 bg-gradient-to-b from-gray-50 to-white"></div>
 
+        <!-- Input -->
+        <div class="border-t bg-white px-4 py-3 shrink-0">
+            <div class="flex gap-2 items-center">
+                <input id="message-input" class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                       placeholder="Type a message..." />
+                <button onclick="sendMessage()"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-sm transition">
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
@@ -34,6 +71,7 @@
 
 <script>
 const signedPhone = "{{ signed_phone }}";
+let aiEnabled = {% if ai_enabled %}true{% else %}false{% endif %};
 
 // Load messages
 async function fetchMessages() {
@@ -41,24 +79,37 @@ async function fetchMessages() {
     const data = await res.json();
 
     const chatBox = document.getElementById('chat-box');
+    const wasAtBottom = chatBox.scrollTop + chatBox.clientHeight >= chatBox.scrollHeight - 20;
+    const previousScrollTop = chatBox.scrollTop;
+    const previousScrollHeight = chatBox.scrollHeight;
+
     chatBox.innerHTML = '';
 
     data.messages.forEach(m => {
         const div = document.createElement('div');
-        div.className = `flex ${m.direction === 'out' ? 'justify-end' : ''}`;
+        div.className = `flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`;
 
         div.innerHTML = `
-            <div class="px-4 py-2 rounded-xl text-sm shadow 
-                ${m.direction === 'out' ? 'bg-green-100' : 'bg-white'}">
-                <p>${m.message}</p>
-                <p class="text-xs text-gray-400 mt-1 text-right">${m.timestamp}</p>
+            <div class="max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm border
+                ${m.direction === 'out'
+                    ? 'bg-emerald-100 border-emerald-200 text-gray-900'
+                    : 'bg-white border-gray-200 text-gray-800'}">
+                <p class="whitespace-pre-wrap leading-relaxed">${m.message}</p>
+                <p class="text-[11px] text-gray-400 mt-2 text-right">${m.timestamp}</p>
             </div>
         `;
 
         chatBox.appendChild(div);
     });
 
-    chatBox.scrollTop = chatBox.scrollHeight;
+    requestAnimationFrame(() => {
+        if (wasAtBottom) {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        } else {
+            const heightDelta = chatBox.scrollHeight - previousScrollHeight;
+            chatBox.scrollTop = previousScrollTop + heightDelta;
+        }
+    });
 }
 
 // Send message
@@ -80,11 +131,41 @@ async function sendMessage() {
     fetchMessages();
 }
 
+async function toggleAiReply() {
+    const res = await apiFetch('/api/messages/ai-reply-toggle/', {
+        method: 'PATCH',
+        body: JSON.stringify({
+            ai_enabled: !aiEnabled
+        })
+    });
+
+    const data = await res.json();
+    aiEnabled = !!data.ai_enabled;
+
+    const toggle = document.getElementById('ai-toggle');
+    const knob = document.getElementById('ai-toggle-knob');
+    const statusText = document.getElementById('ai-status-text');
+
+    toggle.classList.toggle('bg-emerald-600', aiEnabled);
+    toggle.classList.toggle('border-emerald-600', aiEnabled);
+    toggle.classList.toggle('bg-gray-300', !aiEnabled);
+    toggle.classList.toggle('border-gray-300', !aiEnabled);
+    toggle.setAttribute('aria-pressed', aiEnabled ? 'true' : 'false');
+    knob.classList.toggle('translate-x-8', aiEnabled);
+    knob.classList.toggle('translate-x-1', !aiEnabled);
+    statusText.textContent = aiEnabled ? 'ON' : 'OFF';
+    statusText.classList.toggle('text-emerald-700', aiEnabled);
+    statusText.classList.toggle('text-gray-500', !aiEnabled);
+}
+
 // Enter to send
 document.getElementById("message-input")
     .addEventListener("keypress", function(e) {
         if (e.key === "Enter") sendMessage();
     });
+
+document.getElementById("ai-toggle")
+    .addEventListener("click", toggleAiReply);
 
 // Poll
 setInterval(fetchMessages, 3000);

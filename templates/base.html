@@ -12,18 +12,15 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
 
-    {% if show_header != False %}
         {% include "partials/header.html" %}
-    {% endif %}
 
     <!-- Main Content -->
-    <main class="flex-1 {% if show_header != False %}container mx-auto px-4 py-8{% endif %}">
+    <main class="flex-1 container mx-auto px-4 py-8">
         {% block content %}{% endblock %}
     </main>
 
-    {% if show_header != False %}
         {% include "partials/footer.html" %}
-    {% endif %}
+
 
     <!-- Global Auth Guard + Logout -->
     <script>
