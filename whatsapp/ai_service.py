@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 FAQ_RAG_LIMIT = getattr(settings, "RAG_FAQ_LIMIT", 2)
 DOC_RAG_LIMIT = getattr(settings, "RAG_DOCUMENT_LIMIT", 2)
 RAG_SNIPPET_CHARS = 180
+RAG_MAX_DISTANCE = getattr(settings, "RAG_MAX_DISTANCE", 0.35)
 
 def _vector_literal(vector):
     return "[" + ",".join(str(v) for v in vector) + "]"
@@ -56,10 +57,11 @@ def get_retrieval_context(business, user_message, faq_limit=FAQ_RAG_LIMIT, chunk
             WHERE business_id = %s
               AND is_active = TRUE
               AND embedding IS NOT NULL
+              AND (embedding <=> %s::vector) <= %s
             ORDER BY distance ASC
             LIMIT %s
             """,
-            [query_embedding, business.id, faq_limit],
+            [query_embedding, business.id, query_embedding, RAG_MAX_DISTANCE, faq_limit],
         )
         faqs = cursor.fetchall()
 
@@ -71,10 +73,11 @@ def get_retrieval_context(business, user_message, faq_limit=FAQ_RAG_LIMIT, chunk
               ON dc.document_id = d.id
             WHERE dc.business_id = %s
               AND dc.embedding IS NOT NULL
+              AND (dc.embedding <=> %s::vector) <= %s
             ORDER BY distance ASC
             LIMIT %s
             """,
-            [query_embedding, business.id, chunk_limit],
+            [query_embedding, business.id, query_embedding, RAG_MAX_DISTANCE, chunk_limit],
         )
         chunks = cursor.fetchall()
 
@@ -90,6 +93,8 @@ def get_retrieval_context(business, user_message, faq_limit=FAQ_RAG_LIMIT, chunk
                 _truncate(question, 70),
             )
             faq_context += f"- {question} :: {_truncate(answer)}\n"
+    else:
+        logger.info("RAG FAQ match | business=%s | no matches under distance %.2f", business.id, RAG_MAX_DISTANCE)
 
     doc_context = ""
     if chunks:
@@ -104,6 +109,8 @@ def get_retrieval_context(business, user_message, faq_limit=FAQ_RAG_LIMIT, chunk
                 doc_type,
             )
             doc_context += f"- {title} ({doc_type}) :: {_truncate(content)}\n"
+    else:
+        logger.info("RAG DOC match | business=%s | no matches under distance %.2f", business.id, RAG_MAX_DISTANCE)
 
     return (faq_context + doc_context).strip()
 
@@ -121,14 +128,15 @@ def build_system_prompt(business, rag_context=""):
         "Do not invent or guess the current time if you are unsure. "
         f"{getattr(business, 'ai_instructions', '')} "
         f"{rag_context} "
-        "Use the retrieved FAQ and document information when relevant. "
+        "Use ONLY the retrieved FAQ and document information when relevant. "
+        "If there is no relevant retrieved context, say you do not know and ask a brief follow-up question. "
+        "Do not invent shop hours, services, prices, names, or policies. "
         "Keep the answer short and practical. "
         "Prefer one concise paragraph or 3 bullets max. "
-        "If information is unavailable, politely ask the customer for more details. "
         "Be concise and friendly. Respond in plain text without markdown."
     )
 
-def get_conversation_history(business, contact_phone, limit=5):
+def get_conversation_history(business, contact_phone, limit=3):
     """Fetch the last N messages for a contact as OpenAI message dicts."""
     messages = (
         Messages.objects
@@ -165,7 +173,7 @@ def get_ai_response(business, contact_phone, user_message):
     
     response = client.chat.completions.create(
         model=settings.OPENAI_MODEL,
-        max_tokens=settings.OPENAI_MAX_TOKENS,
+        max_tokens=min(settings.OPENAI_MAX_TOKENS, 300),
         temperature=settings.OPENAI_TEMPERATURE,
         messages=[
             {"role": "system", "content": build_system_prompt(business, rag_context)},
