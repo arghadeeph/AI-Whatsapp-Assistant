@@ -19,14 +19,25 @@ logger = logging.getLogger(__name__)
 FAQ_RAG_LIMIT = getattr(settings, "RAG_FAQ_LIMIT", 2)
 DOC_RAG_LIMIT = getattr(settings, "RAG_DOCUMENT_LIMIT", 2)
 RAG_SNIPPET_CHARS = 180
-RAG_MAX_DISTANCE = getattr(settings, "RAG_MAX_DISTANCE", 0.35)
+RAG_FAQ_MAX_DISTANCE = getattr(settings, "RAG_FAQ_MAX_DISTANCE", getattr(settings, "RAG_MAX_DISTANCE", 0.40))
+RAG_DOC_MAX_DISTANCE = getattr(settings, "RAG_DOC_MAX_DISTANCE", getattr(settings, "RAG_MAX_DISTANCE", 0.60))
+RAG_QUERY_MIN_CHARS = getattr(settings, "RAG_QUERY_MIN_CHARS", 3)
 
 def _vector_literal(vector):
     return "[" + ",".join(str(v) for v in vector) + "]"
 
 
+def _normalize_query(text: str) -> str:
+    """
+    Normalize user text before embedding so trivial punctuation and spacing
+    differences do not reduce retrieval quality.
+    """
+    text = " ".join((text or "").split())
+    return text.strip()
+
+
 def _get_query_embedding(user_message):
-    return embeddings_client.embed_query(user_message)
+    return embeddings_client.embed_query(_normalize_query(user_message))
 
 
 def _truncate(text, limit=RAG_SNIPPET_CHARS):
@@ -40,7 +51,16 @@ def get_retrieval_context(business, user_message, faq_limit=FAQ_RAG_LIMIT, chunk
     """
     Retrieve top FAQ and document chunk matches using pgvector similarity search.
     """
-    query_embedding = _vector_literal(_get_query_embedding(user_message))
+    normalized_message = _normalize_query(user_message)
+    if len(normalized_message) < RAG_QUERY_MIN_CHARS:
+        logger.info(
+            "RAG skipped | business=%s | query too short after normalization | raw=%s",
+            business.id,
+            _truncate(user_message, 80),
+        )
+        return ""
+
+    query_embedding = _vector_literal(_get_query_embedding(normalized_message))
 
     faq_table = FAQ._meta.db_table
     chunk_table = DocumentChunk._meta.db_table
@@ -61,10 +81,11 @@ def get_retrieval_context(business, user_message, faq_limit=FAQ_RAG_LIMIT, chunk
             ORDER BY distance ASC
             LIMIT %s
             """,
-            [query_embedding, business.id, query_embedding, RAG_MAX_DISTANCE, faq_limit],
+            [query_embedding, business.id, query_embedding, RAG_FAQ_MAX_DISTANCE, faq_limit],
         )
         faqs = cursor.fetchall()
 
+    with connection.cursor() as cursor:
         cursor.execute(
             f"""
             SELECT dc.id, dc.content, d.title, d.doc_type, (dc.embedding <=> %s::vector) AS distance
@@ -77,7 +98,7 @@ def get_retrieval_context(business, user_message, faq_limit=FAQ_RAG_LIMIT, chunk
             ORDER BY distance ASC
             LIMIT %s
             """,
-            [query_embedding, business.id, query_embedding, RAG_MAX_DISTANCE, chunk_limit],
+            [query_embedding, business.id, query_embedding, RAG_DOC_MAX_DISTANCE, chunk_limit],
         )
         chunks = cursor.fetchall()
 
@@ -86,31 +107,33 @@ def get_retrieval_context(business, user_message, faq_limit=FAQ_RAG_LIMIT, chunk
         faq_context += "\nFAQ Matches:\n"
         for faq_id, question, answer, distance in faqs:
             logger.info(
-                "RAG FAQ match | business=%s | faq_id=%s | distance=%.4f | question=%s",
+                "RAG FAQ match | business=%s | faq_id=%s | distance=%.4f | question=%s | answer=%s",
                 business.id,
                 faq_id,
                 distance,
                 _truncate(question, 70),
+                _truncate(answer, 70),
             )
             faq_context += f"- {question} :: {_truncate(answer)}\n"
     else:
-        logger.info("RAG FAQ match | business=%s | no matches under distance %.2f", business.id, RAG_MAX_DISTANCE)
+        logger.info("RAG FAQ match | business=%s | no matches under distance %.2f", business.id, RAG_FAQ_MAX_DISTANCE)
 
     doc_context = ""
     if chunks:
         doc_context += "\nDocument Matches:\n"
         for chunk_id, content, title, doc_type, distance in chunks:
             logger.info(
-                "RAG DOC match | business=%s | chunk_id=%s | distance=%.4f | title=%s | type=%s",
+                "RAG DOC match | business=%s | chunk_id=%s | distance=%.4f | title=%s | type=%s | content=%s",
                 business.id,
                 chunk_id,
                 distance,
                 _truncate(title, 70),
                 doc_type,
+                _truncate(content, 70),
             )
             doc_context += f"- {title} ({doc_type}) :: {_truncate(content)}\n"
     else:
-        logger.info("RAG DOC match | business=%s | no matches under distance %.2f", business.id, RAG_MAX_DISTANCE)
+        logger.info("RAG DOC match | business=%s | no matches under distance %.2f", business.id, RAG_DOC_MAX_DISTANCE)
 
     return (faq_context + doc_context).strip()
 

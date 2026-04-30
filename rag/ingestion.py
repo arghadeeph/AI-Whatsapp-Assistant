@@ -136,7 +136,13 @@ def ingest_document(document_id: str) -> None:
 
     pages    = load_document(document)
     chunks   = chunk_pages(pages, document)
-    texts    = [c["content"] for c in chunks]
+    # Include document title and type in the embedded text so queries like
+    # "what is return policy?" can match a section even when the chunk body
+    # does not repeat the exact heading.
+    texts    = [
+        f"{document.title}\n{document.doc_type}\n{c['content']}"
+        for c in chunks
+    ]
     vecs     = embed_texts(texts)
 
     store_chunks(chunks, vecs, document)
