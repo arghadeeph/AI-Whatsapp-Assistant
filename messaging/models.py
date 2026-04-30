@@ -57,3 +57,22 @@ class Messages(models.Model):
         indexes = [
             models.Index(fields=['business', 'phone']),
         ]
+
+
+class ConversationState(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE)
+    phone = models.CharField(max_length=20)
+    last_read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["business", "phone"], name="unique_conversation_state")
+        ]
+        indexes = [
+            models.Index(fields=["business", "phone"]),
+        ]
+
+    def __str__(self):
+        return f"{self.business_id}:{self.phone}"

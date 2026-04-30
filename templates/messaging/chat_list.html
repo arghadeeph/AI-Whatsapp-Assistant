@@ -10,6 +10,7 @@
         <p class="text-gray-500">Your recent chats</p>
     </div>
 
+    <div id="chat-notice" class="hidden mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"></div>
     <div id="chat-list" class="bg-white rounded-xl shadow-sm divide-y"></div>
 
 </div>
@@ -19,9 +20,22 @@
 {% block extra_scripts %}
 
 <script>
-async function loadConversations() {
+let lastUnreadTotal = 0;
+
+async function refreshConversationList() {
     const res = await apiFetch('/api/messages/conversations/');
     const data = await res.json();
+    const unreadTotal = data.conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+    const notice = document.getElementById('chat-notice');
+
+    if (unreadTotal > lastUnreadTotal) {
+        notice.textContent = `You have ${unreadTotal} unread incoming message${unreadTotal === 1 ? '' : 's'}.`;
+        notice.classList.remove('hidden');
+    } else if (unreadTotal === 0) {
+        notice.classList.add('hidden');
+    }
+
+    lastUnreadTotal = unreadTotal;
 
     const container = document.getElementById('chat-list');
     container.innerHTML = '';
@@ -29,24 +43,28 @@ async function loadConversations() {
     data.conversations.forEach(c => {
         const item = document.createElement('a');
         item.href = `/chat/${c.signed_phone}/`;
-
         item.className = "block p-4 hover:bg-gray-50 transition";
-
         item.innerHTML = `
             <div class="flex justify-between">
                 <div>
-                    <p class="font-medium text-gray-800">${c.phone}</p>
+                    <div class="flex items-center gap-2">
+                        <p class="font-medium text-gray-800">${c.phone}</p>
+                        ${c.has_unread ? '<span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">New</span>' : ''}
+                    </div>
                     <p class="text-sm text-gray-400">Tap to open chat</p>
                 </div>
-                <span class="text-xs text-gray-400">${c.last_time}</span>
+                <div class="text-right">
+                    <span class="text-xs text-gray-400 block">${c.last_time}</span>
+                    ${c.unread_count > 0 ? `<span class="text-xs font-semibold text-emerald-700">${c.unread_count} unread</span>` : ''}
+                </div>
             </div>
         `;
-
         container.appendChild(item);
     });
 }
 
-loadConversations();
+refreshConversationList();
+setInterval(refreshConversationList, 5000);
 </script>
 
 {% endblock %}
